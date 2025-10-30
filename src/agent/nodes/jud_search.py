@@ -7,7 +7,7 @@ from openai import AzureOpenAI
 from dotenv import load_dotenv
 from time import sleep
 import pandas as pd
-
+from langchain_core.messages import AIMessage
 
 load_dotenv()
 AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT")
@@ -31,67 +31,57 @@ es = Elasticsearch(es_endpoint, api_key=es_api_key)
 
 
 async def jud_search(state: any, runtime: any) -> any:
-    
     try:
-        retrieval=state.messages[0].content
+        ai_message = next((m for m in reversed(state.messages) if isinstance(m, AIMessage)), None)
+        if ai_message is None:
+            raise Exception('No AIMessage。')
+        retrieval = ai_message.content
         retrieval = json.loads(retrieval)
-        
-        print('retrieval in jud_search:',type(retrieval),retrieval)
-        
-        use_judgement_search=retrieval['use_judgement_search']
-        print('use_judgement_search in jud_search:',use_judgement_search)
+        use_judgement_search = retrieval['use_judgement_search']
+        history = state.jud_search_history if hasattr(state, 'jud_search_history') else []
         if use_judgement_search:
-            
-            judgement_summary=retrieval['judgement_summary']
-            judgement_keywords=retrieval['judgement_keywords']
-            print('judgement_keywords in ord_search:',judgement_keywords)
-            print('judgement_summary in ord_search:',judgement_summary)
-            summary_embedding=generate_embeddings(judgement_summary)
-            index="judgement_processed_v202511"
-            search_query = " ".join(judgement_keywords)
-
-            response=es.search(
+            judgement_summary = retrieval['judgement_summary']
+            judgement_keywords = retrieval['judgement_keywords']
+            summary_embedding = generate_embeddings(judgement_summary)
+            index = "judgement_processed_v202511"
+            should_matches = [{"match": {"content": k}} for k in judgement_keywords]
+            es_query = {
+                "bool": {
+                    "should": should_matches,
+                }
+            }
+            response = es.search(
                 _source=["summary"],
                 index=index,
-                query={
-                    "bool": {
-                        "should": [
-                            {
-                                "match": {
-                                    "summary": {
-                                        "query": search_query,
-                                        "operator": "and"
-                                    }
-                                }
-                            }
-                        ]
-                    },
-                },
+                query=es_query,
                 knn={
                     "field": "summary_vector",
                     "query_vector": summary_embedding,
                     "k": 5,
-                    "num_candidates": 10
+                    "num_candidates": 10,
+                    "boost": 0.5
                 },
                 rank={
                     "rrf": {}
                 },
                 size=5
             )
-            print('jud_search response:',response['hits']['hits'])
-
+            new_history = history + [response['hits']['hits']]
             return {
                 "jud_search_results": response['hits']['hits'],
+                "jud_search_history": new_history,
                 "messages": []
             }
         else:
             return {
                 "jud_search_results": [],
+                "jud_search_history": history,
                 "messages": []
             }
     except Exception as e:
-            
-            return {
-                "jud_search_results": {"error": str(e), "hits": []},
-                "messages": []
-            }
+        history = state.jud_search_history if hasattr(state, 'jud_search_history') else []
+        return {
+            "jud_search_results": {"error": str(e), "hits": []},
+            "jud_search_history": history,
+            "messages": []
+        }

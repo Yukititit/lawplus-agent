@@ -1,3 +1,4 @@
+from agent.tools import get_case_info
 from langchain_openai import AzureChatOpenAI
 from langchain.messages import SystemMessage
 
@@ -7,9 +8,9 @@ model = AzureChatOpenAI(
     api_version="2024-12-01-preview",
 )
 
-from agent.tools import get_case_info
 
 # Augment the LLM with tools
+
 tools = [get_case_info]
 tools_by_name = {tool.name: tool for tool in tools}
 model_with_tools = model.bind_tools(tools)
@@ -20,53 +21,56 @@ async def process_query(state: any, runtime: any) -> any:
 
     Can use runtime context to alter behavior.
     """
-    
-    prompt="""  
-        As a professional legal AI assistant, your task is to analyze user queries related to laws, regulations, cases, statutes, or legal concepts. Your responsibility includes understanding the user's input query, identifying the need to search for statutes or judgements, extracting relevant keywords for precise searches, and generating a concise summary for similarity searches based on the embedded statutes or judgements.
+
+    prompt = """
+        As a professional legal AI assistant, your task is to analyze user queries related to laws, regulations, cases, ordinances, or legal concepts. You have access to the full conversation history in the messages.
+
+        Your responsibilities include understanding user input queries in the context of the entire conversation, identifying if the query requires new searches or can be answered from previous responses, extracting relevant keywords for precise searches only when necessary, and generating concise summaries for similarity searches based on embedded ordinances or judgments.
 
         Please carefully follow these steps:
 
-        1. Read the user's input to identify the legal subject, entity, action, or concept, as well as the context.
+        1. Review the entire conversation history to understand the context. Identify if the current user query is a follow-up asking for details, explanations, or expansions on specific items (e.g., particular judgments, ordinances, or cases) mentioned in previous assistant responses. Examples: "tell me more about these 5 judgements" or "how much did they pay in that dog bite case" — these reference prior info and do NOT need new searches.
 
-        2. Determine the search criteria:
-        - For queries involving statutes, regulations, or general legal principles, use "ordinance_search."
-        - For queries involving case law, precedents, or specific judicial interpretations, use "judgement_search."
-        - If the query covers both areas or doesn't specify, use both queries.
-        
+        2. Determine the search criteria based on the context:
 
-        3. For each enabled search:
-        - Extract precise keywords from the query, prioritizing specific legal terms, entities, and actions/concepts. Avoid using generics and ensure that the keywords are searchable.For each keyword, include both its English and Chinese equivalents in the list.
-        - Create a hypothetical answer.
-            - For a judgement, hypothesize a summary of a similar judgement.
-            example:"The facts of the case involve a dispute between a mother (Plaintiff) and her daughter (Defendant) over the beneficial ownership and possession of a property in Taikoo Shing, Hong Kong. The Plaintiff, as the registered owner, sought recovery of vacant possession from the Defendant, who claimed beneficial ownership based on an alleged 1989 oral agreement and oral representations. Ultimately, the court rendered a decision refusing the Defendant's application for leave to appeal against the judgement that ordered the Defendant to deliver vacant possession and pay mesne profits and expenses, stating that the Defendant's grounds for appeal lacked reasonable prospects of success and that no apparent bias or procedural unfairness was found."
-            - For an ordinance, hypothesize the content of the legal provision.
-            example:"2. Who are Mediators?\nMediators would not provide legal advice and would not take sides. They would not impose any decisions on the parties. Unlike Court proceedings or arbitrations, mediators are not there to determine the disputes or issues between the parties but merely to facilitate settlement.\n \nThere are a number of organizations in Hong Kong which provide lists of mediators. The major providers are: the Hong Kong Bar Association, the Law Society of Hong Kong and the Hong Kong International Arbitration Centre.\n"
-        (No more than 500 words) Keep the wording concise and easy to embed in a search to retrieve real documents with similar semantics.
+        - If the query is a new, standalone request for general regulations, ordinances, or legal principles not covered in history, set "use_ordinance_search": true.
 
-        4. Output only a JSON object of the following format:
+        - If the query is a new request for case law, precedents, or specific judicial interpretations not covered in history, set "use_judgement_search": true.
 
-        {
+        - If the query is asking for more details about specific ordinances or judgments already retrieved and provided in previous responses, do NOT trigger new searches. Set the corresponding use flags to false, keywords to empty list [], and summary to empty string. The downstream sum_model will handle answering directly from conversation history.
+
+        - If the query covers two areas and requires new info, use both. Only trigger searches for truly new information not answerable from past conversation.
+
+        3. For each enabled search (only if truly new info needed):
+
+        - Extract precise keywords from the current query (ignore history references), prioritizing specific legal terms, entities, and actions/concepts. Avoid generic terms and ensure keywords are searchable. For each keyword, include its English and Chinese equivalents in the list.
+
+        - Create a hypothetical answer summary (no more than 200 words). The wording should be concise and clear, easy to embed in search engines to retrieve semantically similar real documents.
+
+        - For judgments, hypothesize a summary of a similar judgment.
+
+        4. Output only a JSON object in the following format:
+
+        { 
         "use_ordinance_search": true/false,
-        "ordinance_keywords": ["term1", "term2", ...] 
-        "ordinance_summary": "Summary string" (If false, returns an empty string)
+        "ordinance_keywords": ["term1", "term2", ...] if true else [],
+        "ordinance_summary": "summary string" if true else "",
         "use_judgement_search": true/false,
-        "judgement_keywords": ["term1", "term2", ...] 
-        "judgement_summary": "Summary string" 
+        "judgement_keywords": ["term1", "term2", ...] if true else [],
+        "judgement_summary": "summary string" if true else ""
         }
 
-        No additional text, instructions, or wrappers are required.
+        No additional text, descriptions, or wrappers are needed. Ensure JSON is valid and parseable.
 
     """
+    
     messages = [
         SystemMessage(
             content=prompt
         )
     ] + state.messages
 
-
     # response = await model_with_tools.ainvoke(messages)
     response = await model.ainvoke(messages)
-    print("messages:", messages)
-    print("response", response)
 
     return {"messages": [response]}

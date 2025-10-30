@@ -7,6 +7,7 @@ from openai import AzureOpenAI
 from dotenv import load_dotenv
 from time import sleep
 import pandas as pd
+from langchain_core.messages import AIMessage
 
 
 load_dotenv()
@@ -33,85 +34,68 @@ es = Elasticsearch(es_endpoint, api_key=es_api_key)
 async def ord_search(state: any, runtime: any) -> any:
     
     try:
-        retrieval=state.messages[0].content
+        ai_message = next((m for m in reversed(state.messages) if isinstance(m, AIMessage)), None)
+        if ai_message is None:
+            raise Exception('No AIMessage。')
+        retrieval = ai_message.content
         retrieval = json.loads(retrieval)
-        
-        print('retrieval in ord_search:',type(retrieval),retrieval)
+
         
         use_ordinance_search=retrieval['use_ordinance_search']
+        history = state.ord_search_history if hasattr(state, 'ord_search_history') else []
+
         if use_ordinance_search:
             
             ordinance_summary=retrieval['ordinance_summary']
             ordinance_keywords=retrieval['ordinance_keywords']
-            print('ordinance_keywords in ord_search:',ordinance_keywords)
-            print('ordinance_summary in ord_search:',ordinance_summary)
+
             summary_embedding=generate_embeddings(ordinance_summary)
             index="ordinances_v202508"
             search_query = " ".join(ordinance_keywords)
-            query = {
-                "_source":["content"],
-                "query": {
-                    "match": {
-                        "content": {
-                            "query": search_query,
-                            "operator": "and"
-                        }
-                    }
-                },
-                "knn": {
-                    "field": "content embedding",
-                    "query_vector": summary_embedding,
-                    "k": 5,
-                    "num_candidates": 10
-                },
-                "rank": {
-                    "rff": {}
-                },
-                "size": 5
+            should_matches = [{"match": {"content": k}} for k in ordinance_keywords]
+            es_query = {
+                "bool": {
+                    "should": should_matches,
+                 
+                }
             }
-
+            
+            
             response=es.search(
                 _source=["content"],
                 index=index,
-                query={
-                    "bool": {
-                        "should": [
-                            {
-                                "match": {
-                                    "content": {
-                                        "query": search_query,
-                                        "operator": "and"
-                                    }
-                                }
-                            }
-                        ]
-                    },
-                },
+                query=es_query,
                 knn={
                     "field": "content embeddings",
                     "query_vector": summary_embedding,
                     "k": 5,
-                    "num_candidates": 10
+                    "num_candidates": 10,
+                    "boost": 0.5
                 },
-                rank={
-                    "rrf": {}
-                },
+                # rank={
+                #     "rrf": {}
+                # },
                 size=5
             )
-            print('ord_search response:',response['hits']['hits'])
+            new_history = history + [response['hits']['hits']]
+
 
             return {
                 "ord_search_results": response['hits']['hits'],
-                "messages": []
+                "ord_search_history": new_history,
+                "messages": response['hits']['hits']
             }
         else:
             return {
                 "ord_search_results": [],
+                "ord_search_history": history,
                 "messages": []
             }
     except Exception as e:
             
+            history = state.ord_search_history if hasattr(state, 'ord_search_history') else []
             return {
                 "ord_search_results": {"error": str(e), "hits": []},
+                "ord_search_history": history,
                 "messages": []
             }

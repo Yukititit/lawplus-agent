@@ -11,7 +11,8 @@ import os
 from openai import AzureOpenAI
 import operator
 from elasticsearch import Elasticsearch
-from langgraph.graph.message import add_messages  # 新增导入
+from langgraph.graph.message import add_messages  
+
 from dotenv import load_dotenv
 load_dotenv()
 AZURE_OPENAI_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
@@ -47,7 +48,7 @@ def get_law_info(input_list: list) -> dict:
         }
     }
     response=es.search(index=index,body=query)
-    # print('res',response)
+
     
     return response
 
@@ -64,16 +65,17 @@ class Context(TypedDict):
 @dataclass
 class State:
     """Input state for the agent.
-
+    
     Defines the initial structure of incoming data.
     See: https://langchain-ai.github.io/langgraph/concepts/low_level/#state
     """
-
-    input_text: str 
-    ord_search_results: Dict[str, Any] = None
-    jud_search_results: Dict[str, Any] = None
+    
+    ord_search_history: List[Dict[str, Any]] = field(default_factory=list)
+    
+    jud_search_history: List[Dict[str, Any]] = field(default_factory=list)
+    
     messages: Annotated[List[BaseMessage], add_messages] = field(default_factory=list)
-    # output_text: str = ""
+    
 
 
 graph = (
