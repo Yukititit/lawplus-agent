@@ -15,7 +15,7 @@ tools_by_name = {tool.name: tool for tool in tools}
 model_with_tools = model.bind_tools(tools)
 
 
-async def call_model(state: any, runtime: any) -> any:
+async def process_query(state: any, runtime: any) -> any:
     """Process input and returns output.
 
     Can use runtime context to alter behavior.

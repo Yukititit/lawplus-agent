@@ -5,6 +5,7 @@ from langchain.tools import tool
 def get_case_info() -> str:
     """Get Case Information
     """
+    
     return """
 **Client Information**
 Name: Wu Hoi Ying

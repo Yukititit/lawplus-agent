@@ -28,7 +28,7 @@ es = Elasticsearch(es_endpoint, api_key=es_api_key)
 
 
 
-from agent.nodes import call_model, ord_search, jud_search, sum_model
+from agent.nodes import ord_search, jud_search, process_query, sum_model
 
 #tool
 def get_law_info(input_list: list) -> dict:
@@ -78,16 +78,17 @@ class State:
 
 graph = (
     StateGraph(State, context_schema=Context)
-    .add_node(call_model)
+    .add_node(process_query)
     .add_node(ord_search)
     .add_node(jud_search)
     .add_node(sum_model)
-    .add_edge("__start__", "call_model")
-    .add_edge("call_model", "ord_search")
-    .add_edge("call_model", "jud_search")
+    
+    .add_edge("__start__", "process_query")
+    .add_edge("process_query", "ord_search")
+    .add_edge("process_query", "jud_search")
     .add_edge("ord_search", "sum_model")
     .add_edge("jud_search", "sum_model")    
     .add_edge("sum_model", "__end__")
     
-    .compile(name="New Graph")
+    .compile(name="Research Agent")
 )

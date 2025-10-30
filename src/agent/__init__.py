@@ -3,6 +3,7 @@
 This module defines a custom graph.
 """
 
-from agent.graph import graph
+from agent.graphs.case_agent import graph as case_agent
+from agent.graphs.research_agent import graph as research_agent
 
-__all__ = ["graph"]
+__all__ = ["case_agent", "research_agent"]
