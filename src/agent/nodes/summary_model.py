@@ -22,6 +22,7 @@ async def sum_model(state: any, runtime: any) -> any:
 
     ord_hist = getattr(state, 'ord_search_history', None)
     jud_hist = getattr(state, 'jud_search_history', None)
+    pd_hist=   getattr(state, 'pd_search_history', None)
     if ord_hist is not None and len(ord_hist) > 0:
         ord_search_results_all = ord_hist
     else:
@@ -30,6 +31,15 @@ async def sum_model(state: any, runtime: any) -> any:
         jud_search_results_all = jud_hist
     else:
         jud_search_results_all = [getattr(state, 'jud_search_results', [])]
+        
+    if pd_hist is not None and len(pd_hist) > 0:
+        pd_search_results_all = pd_hist
+    else:
+        pd_search_results_all = [getattr(state, 'pd_search_results', [])]
+    print('judgement history1', jud_search_results_all)
+
+    eval_feedback = getattr(state, 'eval_explain', '') if getattr(state, 'need_revision', False) else ''
+
     prompt=f"""  
     As a specialized Legal AI Assistant, your task is to provide accurate, concise, and evidence-based responses to user queries on legal matters using only the information provided in the attached documents. You must strictly limit your responses to the content within the attached documents, including ordinances, judgments, statutes, case law excerpts, and any other referenced materials. Do not introduce, speculate on, or reference any external knowledge, facts, laws, or interpretations beyond what is explicitly contained in these documents. If a query cannot be fully or partially addressed using only the provided materials, you should clearly state this and explain why, without adding unsubstantiated details.
 
@@ -42,8 +52,11 @@ async def sum_model(state: any, runtime: any) -> any:
     Here are some supporting informations.
     related ordinances (all history rounds):{ord_search_results_all}
     related judgements (all history rounds):{jud_search_results_all}
+    related practice direction (all history rounds):{pd_search_results_all}
     If search results are empty, answer based solely on conversation history, extracting details from prior responses.
+    {('Evaluator feedback to address: ' + eval_feedback) if eval_feedback else ''}
     """
+    # print('prompt',prompt)
     messages = [
         SystemMessage(
             content=prompt

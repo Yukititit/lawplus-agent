@@ -35,13 +35,16 @@ async def jud_search(state: any, runtime: any) -> any:
         ai_message = next((m for m in reversed(state.messages) if isinstance(m, AIMessage)), None)
         if ai_message is None:
             raise Exception('No AIMessage。')
+
         retrieval = ai_message.content
         retrieval = json.loads(retrieval)
         use_judgement_search = retrieval['use_judgement_search']
         history = state.jud_search_history if hasattr(state, 'jud_search_history') else []
+
         if use_judgement_search:
             judgement_summary = retrieval['judgement_summary']
             judgement_keywords = retrieval['judgement_keywords']
+
             summary_embedding = generate_embeddings(judgement_summary)
             index = "judgement_processed_v202511"
             should_matches = [{"match": {"content": k}} for k in judgement_keywords]
@@ -57,8 +60,8 @@ async def jud_search(state: any, runtime: any) -> any:
                 knn={
                     "field": "summary_vector",
                     "query_vector": summary_embedding,
-                    "k": 5,
-                    "num_candidates": 10,
+                    "k": 15,
+                    "num_candidates": 15,
                     "boost": 0.5
                 },
                 rank={
@@ -67,6 +70,7 @@ async def jud_search(state: any, runtime: any) -> any:
                 size=5
             )
             new_history = history + [response['hits']['hits']]
+
             return {
                 "jud_search_results": response['hits']['hits'],
                 "jud_search_history": new_history,

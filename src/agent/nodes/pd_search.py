@@ -15,7 +15,7 @@ AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
 
 def generate_embeddings(
-    text, model="text-embedding-3-large"
+    text, model="text-embedding-3-small"
 ):
     client = AzureOpenAI(
         api_key=AZURE_OPENAI_API_KEY,
@@ -31,7 +31,7 @@ es_api_key = os.environ.get("ES_API_KEY")
 es = Elasticsearch(es_endpoint, api_key=es_api_key)
 
 
-async def ord_search(state: any, runtime: any) -> any:
+async def pd_search(state: any, runtime: any) -> any:
     
     try:
         ai_message = next((m for m in reversed(state.messages) if isinstance(m, AIMessage)), None)
@@ -39,23 +39,26 @@ async def ord_search(state: any, runtime: any) -> any:
             raise Exception('No AIMessage。')
         retrieval = ai_message.content
         retrieval = json.loads(retrieval)
-
         
-        use_ordinance_search=retrieval['use_ordinance_search']
-        history = state.ord_search_history if hasattr(state, 'ord_search_history') else []
-
-        if use_ordinance_search:
+        
+        use_practice_direction_search=retrieval['use_practice_direction_search']
+        history = state.pd_search_history if hasattr(state, 'pd_search_history') else []
+        
+        
+        if use_practice_direction_search:
             
-            ordinance_summary=retrieval['ordinance_summary']
-            ordinance_keywords=retrieval['ordinance_keywords']
+            practice_direction_summary=retrieval['practice_direction_summary']
+            practice_direction_keywords=retrieval['practice_direction_keywords']
 
-            summary_embedding=generate_embeddings(ordinance_summary)
-            index="ordinances_v202508"
-            search_query = " ".join(ordinance_keywords)
-            should_matches = [{"match": {"content": k}} for k in ordinance_keywords]
+            summary_embedding=generate_embeddings(practice_direction_summary)
+            index="practice_direction_v202508"
+            print('practice_direction_keywords11',practice_direction_keywords)
+            should_matches = [{"match": {"content": k}} for k in practice_direction_keywords]
             es_query = {
                 "bool": {
                     "should": should_matches,
+                    "minimum_should_match": 1,
+                    "boost": 2.0,
                  
                 }
             }
@@ -65,13 +68,13 @@ async def ord_search(state: any, runtime: any) -> any:
                 _source=["content"],
                 index=index,
                 query=es_query,
-                knn={
-                    "field": "content embeddings",
-                    "query_vector": summary_embedding,
-                    "k": 5,
-                    "num_candidates": 10,
-                    "boost": 0.5
-                },
+                # knn={
+                #     "field": "content embeddings",
+                #     "query_vector": summary_embedding,
+                #     "k": 5,
+                #     "num_candidates": 10,
+                #     "boost": 0.5
+                # },
                 # rank={
                 #     "rrf": {}
                 # },
@@ -85,24 +88,24 @@ async def ord_search(state: any, runtime: any) -> any:
                 size=5
             )
             new_history = history + [response['hits']['hits']]
-
-
+            
+    
             return {
-                "ord_search_results": response['hits']['hits'],
-                "ord_search_history": new_history,
+                # "pd_search_results": response['hits']['hits'],
+                "pd_search_history": new_history,
                 "messages": []
             }
         else:
             return {
-                "ord_search_results": [],
-                "ord_search_history": history,
+                # "pd_search_results": [],
+                "pd_search_history": history,
                 "messages": []
             }
     except Exception as e:
             
-            history = state.ord_search_history if hasattr(state, 'ord_search_history') else []
+            history = state.pd_search_history if hasattr(state, 'pd_search_history') else []
             return {
-                "ord_search_results": {"error": str(e), "hits": []},
-                "ord_search_history": history,
+                # "pd_search_results": {"error": str(e), "hits": []},
+                "pd_search_history": history,
                 "messages": []
             }
