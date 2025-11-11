@@ -35,30 +35,34 @@ async def jud_search(state: any, runtime: any) -> any:
         ai_message = next((m for m in reversed(state.messages) if isinstance(m, AIMessage)), None)
         if ai_message is None:
             raise Exception('No AIMessage。')
+
         retrieval = ai_message.content
         retrieval = json.loads(retrieval)
         use_judgement_search = retrieval['use_judgement_search']
         history = state.jud_search_history if hasattr(state, 'jud_search_history') else []
+
         if use_judgement_search:
             judgement_summary = retrieval['judgement_summary']
             judgement_keywords = retrieval['judgement_keywords']
+            
             summary_embedding = generate_embeddings(judgement_summary)
             index = "judgement_processed_v202511"
-            should_matches = [{"match": {"content": k}} for k in judgement_keywords]
+            should_matches = [{"match": {"text": k}} for k in judgement_keywords]
             es_query = {
                 "bool": {
                     "should": should_matches,
+                    'boost':2.0
                 }
             }
             response = es.search(
-                _source=["summary"],
+                _source=["text"],
                 index=index,
                 query=es_query,
                 knn={
                     "field": "summary_vector",
                     "query_vector": summary_embedding,
-                    "k": 5,
-                    "num_candidates": 10,
+                    "k": 10,
+                    "num_candidates": 100,
                     "boost": 0.5
                 },
                 rank={
@@ -67,9 +71,30 @@ async def jud_search(state: any, runtime: any) -> any:
                 size=5
             )
             new_history = history + [response['hits']['hits']]
+            # Build explanations for returned hits using the bool query only (compatible with rank/knn)
+            explanations = {}
+            try:
+                for hit in response.get('hits', {}).get('hits', [])[:10]:
+                    doc_id = hit.get('_id')
+                    if doc_id:
+                        exp = es.explain(index=index, id=doc_id, query=es_query)
+                        explanations[doc_id] = exp
+            except Exception:
+                explanations = {}
+
+            # Run a basic profile using only the bool query (no rank/knn) to avoid conflicts
+            basic_profile = None
+            try:
+                prof_res = es.search(index=index, query=es_query, size=0, profile=True)
+                basic_profile = prof_res.get('profile')
+            except Exception:
+                basic_profile = None
+            print('basic_profile', basic_profile)
+            print('explanations', explanations)
             return {
                 "jud_search_results": response['hits']['hits'],
                 "jud_search_history": new_history,
+
                 "messages": []
             }
         else:
