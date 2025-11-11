@@ -7,12 +7,7 @@ model = AzureChatOpenAI(
     api_version="2024-12-01-preview",
 )
 
-from agent.tools import get_case_info
-
-# Augment the LLM with tools
-tools = [get_case_info]
-tools_by_name = {tool.name: tool for tool in tools}
-model_with_tools = model.bind_tools(tools)
+from agent.tools import tools
 
 
 async def case_assistant(state: any, runtime: any) -> any:
@@ -27,6 +22,9 @@ async def case_assistant(state: any, runtime: any) -> any:
     """
     messages = [SystemMessage(content=prompt)] + state.messages
 
-    response = await model.ainvoke(messages)
+    # Augment the LLM with tools
+    model_with_tools = model.bind_tools(tools)
+
+    response = await model_with_tools.ainvoke(messages)
 
     return {"messages": [response]}

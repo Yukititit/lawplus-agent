@@ -29,7 +29,7 @@ es = Elasticsearch(es_endpoint, api_key=es_api_key)
 
 
 
-from agent.nodes import ord_search, jud_search, process_query, sum_model
+from agent.nodes import ord_search, jud_search, process_query, sum_model, pd_search, eval
 
 #tool
 def get_law_info(input_list: list) -> dict:
@@ -73,7 +73,11 @@ class State:
     ord_search_history: List[Dict[str, Any]] = field(default_factory=list)
     
     jud_search_history: List[Dict[str, Any]] = field(default_factory=list)
-    
+    pd_search_history:  List[Dict[str, Any]] = field(default_factory=list)
+    eval_score: float = 0.0
+    eval_explain: str = ""
+    revision_count: float = 0
+    need_revision: bool = False
     messages: Annotated[List[BaseMessage], add_messages] = field(default_factory=list)
     
 
@@ -83,14 +87,26 @@ graph = (
     .add_node(process_query)
     .add_node(ord_search)
     .add_node(jud_search)
+    .add_node(pd_search)
     .add_node(sum_model)
+    .add_node(eval)
     
     .add_edge("__start__", "process_query")
     .add_edge("process_query", "ord_search")
     .add_edge("process_query", "jud_search")
+    .add_edge("process_query", "pd_search")
     .add_edge("ord_search", "sum_model")
     .add_edge("jud_search", "sum_model")    
-    .add_edge("sum_model", "__end__")
+    .add_edge("pd_search", "sum_model")  
+    .add_edge("sum_model", "eval")
+    .add_conditional_edges(
+        "eval",
+        lambda state: "revise" if getattr(state, "need_revision", False) else "end",
+        {
+            "revise": "sum_model",
+            "end": "__end__",
+        },
+    )
     
     .compile(name="Research Agent")
 )
