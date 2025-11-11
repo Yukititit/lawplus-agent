@@ -36,7 +36,7 @@ async def sum_model(state: any, runtime: any) -> any:
         pd_search_results_all = pd_hist
     else:
         pd_search_results_all = [getattr(state, 'pd_search_results', [])]
-    print('judgement history1', jud_search_results_all)
+    
 
     eval_feedback = getattr(state, 'eval_explain', '') if getattr(state, 'need_revision', False) else ''
 
