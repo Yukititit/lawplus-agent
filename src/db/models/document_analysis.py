@@ -31,4 +31,4 @@ class DocumentAnalysis(Base):
     dated: Mapped[Optional[date]] = mapped_column("dated")
     tags: Mapped[Optional[List[str]]] = mapped_column("tags", ARRAY(String))
 
-    # upload: Mapped["Upload"] = relationship(back_populates="document_analysis")
+    upload: Mapped["Upload"] = relationship(back_populates="document_analysis")

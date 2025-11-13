@@ -10,13 +10,7 @@ class Upload(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
 
     document: Mapped["Document"] = relationship(back_populates="upload")
-    template: Mapped["Template"] = relationship(back_populates="upload")
-    inhse_document: Mapped["InHouseDocument"] = relationship(back_populates="upload")
     document_analysis: Mapped["DocumentAnalysis"] = relationship(
-        back_populates="upload"
-    )
-    document_infos: Mapped[list["DocumentInfo"]] = relationship(back_populates="upload")
-    document_parties: Mapped[list["DocumentParty"]] = relationship(
         back_populates="upload"
     )
 

@@ -42,6 +42,7 @@ class Document(Base):
         nullable=False,
     )
     name: Mapped[Optional[str]] = mapped_column("name")
+    deleted: Mapped[Optional[bool]] = mapped_column("deleted", default=False)
     page: Mapped[Optional[int]] = mapped_column("page")
     split_suggestion: Mapped[Optional[List[List[int]]]] = mapped_column(
         "splitSuggestion", ARRAY(Integer, dimensions=2)
@@ -49,5 +50,6 @@ class Document(Base):
     processed: Mapped[Optional[bool]] = mapped_column("processed", default=False)
 
     case: Mapped["Case"] = relationship(back_populates="documents")
+    upload: Mapped["Upload"] = relationship(back_populates="document")
 
     updated_at: Mapped[Optional[date]] = mapped_column("updatedAt")
