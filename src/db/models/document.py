@@ -46,11 +46,8 @@ class Document(Base):
     split_suggestion: Mapped[Optional[List[List[int]]]] = mapped_column(
         "splitSuggestion", ARRAY(Integer, dimensions=2)
     )
+    processed: Mapped[Optional[bool]] = mapped_column("processed", default=False)
 
     case: Mapped["Case"] = relationship(back_populates="documents")
-    upload: Mapped["Upload"] = relationship(back_populates="document")
-    events: Mapped[list["DocEvent"]] = relationship(back_populates="doc")
-    calendar_events: Mapped[list["DocCalendarEvent"]] = relationship(back_populates="doc")
-    processed: Mapped[Optional[bool]] = mapped_column("processed", default=False)
 
     updated_at: Mapped[Optional[date]] = mapped_column("updatedAt")

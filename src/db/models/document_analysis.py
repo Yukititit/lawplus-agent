@@ -31,7 +31,4 @@ class DocumentAnalysis(Base):
     dated: Mapped[Optional[date]] = mapped_column("dated")
     tags: Mapped[Optional[List[str]]] = mapped_column("tags", ARRAY(String))
 
-    upload: Mapped["Upload"] = relationship(back_populates="document_analysis")
-
-    def __repr__(self):
-        return f"DocumentAnalysis(upload_id={self.upload_id}, doc_type={self.doc_type}, summary={self.summary}, dated={self.dated})"
+    # upload: Mapped["Upload"] = relationship(back_populates="document_analysis")

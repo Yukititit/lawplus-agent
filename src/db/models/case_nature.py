@@ -17,9 +17,3 @@ class CaseNature(Base):
     name: Mapped[str] = mapped_column("enName")
 
     cases: Mapped[list["Case"]] = relationship(back_populates="case_nature")
-    research_profiles: Mapped[list["ResearchProfile"]] = relationship(
-        back_populates="case_nature"
-    )
-    stages: Mapped[list["Stage"]] = relationship(
-        back_populates="case_nature"
-    )

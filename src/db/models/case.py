@@ -22,8 +22,9 @@ class Case(Base):
         "LawFirmId",
         ForeignKey("LawFirms.id"),
     )
-    assisted: Mapped[bool] = mapped_column("assisted", nullable=False)
 
+    name: Mapped[str] = mapped_column("name")
     law_firm: Mapped["LawFirm"] = relationship(back_populates="cases")
     case_nature: Mapped["CaseNature"] = relationship(back_populates="cases")
     documents: Mapped[list["Document"]] = relationship(back_populates="case")
+    profile_sessions: Mapped[list["CaseProfileSession"]] = relationship(back_populates="case")
