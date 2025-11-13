@@ -7,7 +7,8 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMe
 from langgraph.graph import StateGraph, START, END
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
-from langgraph.checkpoint.postgres import PostgresSaver
+
+# from langgraph.checkpoint.postgres import PostgresSaver
 
 from dotenv import load_dotenv
 
@@ -33,6 +34,7 @@ class State:
     See: https://langchain-ai.github.io/langgraph/concepts/low_level/#state
     """
 
+    case_id: str
     messages: Annotated[List[BaseMessage], add_messages] = field(default_factory=list)
     # output_text: str = ""
 

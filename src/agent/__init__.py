@@ -1,6 +1,6 @@
 """New LangGraph Agent.
 
-This module defines a custom graph.
+This module defines custom graphs.
 """
 
 from agent.graphs.case_agent import graph as case_agent

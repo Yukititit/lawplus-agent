@@ -1,11 +1,21 @@
-from langchain.tools import tool
+from typing import Any, Optional
+from langchain.tools import tool, ToolRuntime
+
+from src.db import Session
+from src.db.models import Case
 
 @tool
-def get_case_info() -> str:
-    """Get Case Information
-    """
+def get_case_info(runtime: Optional[Any] = None) -> str:
+    """Get Case Information"""
+
+    session = Session()
+    case = session.query(Case).filter(Case.id == runtime.case_id).first()
+    session.close()
     
-    return """
+
+    return f"""
+**Case ID: {case.name}**
+    
 **Client Information**
 Name: Wu Hoi Ying
 Address: 新界元朗錦田吉慶圍 銀喜閣 153 號 B 地下
@@ -22,4 +32,3 @@ Bone fracture caused by dog bite
 **Medical Treatment**
 Bone surgery performed
 """
-
