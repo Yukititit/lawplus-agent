@@ -234,6 +234,7 @@ async def eval(state: any, runtime: any) -> any:
 
     updates["need_revision"] = False
     updates["legal_revision"] = False
+    updates["revision_count"] = 0
     return {**updates, "messages": []}
 
 
