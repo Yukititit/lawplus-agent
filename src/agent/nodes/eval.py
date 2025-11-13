@@ -1,18 +1,15 @@
 from langchain_openai import AzureChatOpenAI
-from langchain.messages import SystemMessage
-from langchain_core.messages import AIMessage, HumanMessage
-import json
+from langchain_core.messages import AIMessage, HumanMessage,SystemMessage
 import os
 from dotenv import load_dotenv
 from datetime import datetime
 os.environ['DEEPEVAL_TELEMETRY_OPT_OUT'] = "1"
-from deepeval.metrics import AnswerRelevancyMetric
 from deepeval.test_case import LLMTestCase
 import sys
 import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
-
+from pprint import pprint
 load_dotenv()
 from deepeval.metrics import FaithfulnessMetric
 #GEval
@@ -32,7 +29,13 @@ from collections import defaultdict
 AZURE_OPENAI_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT")
 
+from langchain_openai import AzureChatOpenAI
+from langchain.messages import SystemMessage
 
+model2 = AzureChatOpenAI(
+    model_name="gpt-4.1-mini",
+    api_version="2024-12-01-preview",
+)
 model = AzureOpenAIModel(
 
 
@@ -43,16 +46,14 @@ model = AzureOpenAIModel(
     deployment_name="gpt-5-mini",
     azure_openai_api_key=AZURE_OPENAI_API_KEY,
 
-    openai_api_version="2024-12-01-preview",  # 替换为实际支持的版本
+    openai_api_version="2024-12-01-preview",  
     azure_endpoint=AZURE_OPENAI_ENDPOINT,
     temperature=1,
-    
 )
 
 THRESHOLD = 0.8
 MAX_REVISIONS = 1
 RECENT_ROUNDS = 1
-
 
 def _extract_retrieval_context(state: any) -> str:
     def safe_join(items):
@@ -64,14 +65,18 @@ def _extract_retrieval_context(state: any) -> str:
 
     if RECENT_ROUNDS > 0:
         ord_hist = ord_hist[-RECENT_ROUNDS:] if len(ord_hist) > 0 else ord_hist
-        jud_hist = jud_hist[-RECENT_ROUNDS:] if len(jud_hist) > 0 else jud_hist
+        
         pd_hist = pd_hist[-RECENT_ROUNDS:] if len(pd_hist) > 0 else pd_hist
 
 
     ord_chunks = []
+
     for round_hits in ord_hist:
+
         for hit in (round_hits or []):
+
             src = (hit.get('_source') or {}) if isinstance(hit, dict) else {}
+
             content = src.get('content')
             if not content:
                 hl = (hit.get('highlight') or {}) if isinstance(hit, dict) else {}
@@ -82,11 +87,13 @@ def _extract_retrieval_context(state: any) -> str:
                 ord_chunks.append(str(content))
 
     jud_chunks = []
+
     for round_hits in jud_hist:
-        for hit in (round_hits or []):
+            hit = round_hits or []
             src = (hit.get('_source') or {}) if isinstance(hit, dict) else {}
             summary = src.get('text')
             id=hit.get('_id')
+
             # if not summary:
             #     hl = (hit.get('highlight') or {}) if isinstance(hit, dict) else {}
             #     hls = hl.get('summary') or hl.get('text')
@@ -110,18 +117,17 @@ def _extract_retrieval_context(state: any) -> str:
 
     parts = []
     if ord_chunks:
-        parts.append("[Ordinances]\n" + safe_join(ord_chunks[:5]))
+        parts.append("[Ordinances]\n" + safe_join(ord_chunks))
     if jud_chunks:
-        parts.append("[Judgements]\n" + safe_join(jud_chunks[:5]))
+        parts.append("[Judgements]\n" + safe_join(jud_chunks))
     if pd_chunks:
-        parts.append("[Practice Directions]\n" + safe_join(pd_chunks[:5]))
+        parts.append("[Practice Directions]\n" + safe_join(pd_chunks))
 
     return safe_join(parts) if parts else "No retrieval context"
 
 
 async def eval(state: any, runtime: any) -> any:
-    """使用 deepeval 评估最近一次回答，必要时触发重写。"""
-
+    """use deepeval to evaluate the latest answer, and trigger revision if necessary."""
     ai_message = next((m for m in reversed(state.messages) if isinstance(m, AIMessage)), None)
     if ai_message is None:
         return {"messages": []}
@@ -135,14 +141,12 @@ async def eval(state: any, runtime: any) -> any:
 
     result = chatbot_eval(query_text, ai_message.content, retrieval_context)
     case_score = result.get("case_number", {}).get("score")
-    legal_score = result.get("legal_relevance", {}).get("score") or result.get("legal", {}).get("score")
+    legal_score = result.get("legal_relevance", {}).get("score") 
     case_reason = result.get("case_number", {}).get("explain")
-    legal_reason = result.get("legal_relevance", {}).get("explain") or result.get("legal", {}).get("explain")
+    legal_reason = result.get("legal_relevance", {}).get("explain") 
 
-    scores = [s for s in [case_score, legal_score] if isinstance(s, (int, float))]
-    score = sum(scores) / len(scores) if scores else 0.0
-    # score=case_score
-    print(f"case_score: {case_score}, legal_score: {legal_score}")
+ 
+    print(f"csea_score: {case_score}, legal_score: {legal_score}")
     explain_parts = []
     if case_reason:
         explain_parts.append(f"Factual Faithfulness: {case_reason}")
@@ -150,32 +154,86 @@ async def eval(state: any, runtime: any) -> any:
         explain_parts.append(f"Legal Relevance: {legal_reason}")
     explain = "\n".join(explain_parts) if explain_parts else "No evaluator reasons provided."
 
-    needs_revision = score < THRESHOLD and getattr(state, "revision_count", 0) < MAX_REVISIONS
+    def _safe_float(value):
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            logging.warning(f" {value!r} can't be float, return None")
+            return None
 
     updates = {
-        "eval_score": float(score),
+        "case_score": _safe_float(case_score),
+        "legal_score": _safe_float(legal_score),
         "eval_explain": explain,
     }
 
-    if needs_revision:
-        revision_count = getattr(state, "revision_count", 0) + 1
+
+    revision_count_current = getattr(state, "revision_count", 0)
+    legal_low = isinstance(legal_score, (int, float)) and legal_score < 0.6
+    case_low = isinstance(case_score, (int, float)) and case_score < 0.7
+
+    if legal_low and revision_count_current < MAX_REVISIONS:
+        revision_count = revision_count_current + 1
+        updates["revision_count"] = revision_count
+        updates["legal_revision"] = True
+        updates["need_revision"] = False
+
+        feedback_for_query = (
+            "The original query received a low legal relevance score during evaluation. "
+            "Your task is to refine it into a single, improved query that enhances search intent for legal retrieval.\n\n"
+            f"Original user query: {query_text}\n\n"
+            f"Evaluator feedback (legal): {legal_reason}\n\n"
+            "Instructions:\n"
+            "- Analyze the feedback to identify gaps in legal precision, coverage, or intent.\n"
+            "- Enrich the query by abstracting key legal concepts (e.g., incorporate related statutes, doctrines, or jurisdictions if relevant) while keeping it broad yet targeted.\n"
+            "- Make it concise, natural, and optimized for retrieval (e.g., use synonyms, negate ambiguities, or add specificity without over-narrowing).\n"
+            "- Output ONLY the new query as a single string. Do not include explanations or additional text."
+        )
+
+        # feedback_message = HumanMessage(
+        #     content=feedback_for_query,
+        #     additional_kwargs={"from_eval": "legal_revision_feedback"},
+        # )
+        messages = [
+            SystemMessage(
+                content=feedback_for_query
+            )
+        ] + state.messages
+
+        response = await model2.ainvoke(messages)
+        return {**updates, "messages": [response]}
+
+
+    # secondary determination: when the factual faithfulness is low, go back to the summary model to rewrite the answer (continue to use the current logic)
+    if case_low and revision_count_current < MAX_REVISIONS:
+        revision_count = revision_count_current + 1
         updates["revision_count"] = revision_count
         updates["need_revision"] = True
+        updates["legal_revision"] = False
 
         feedback = (
             "Please revise your previous answer to meet all requirements.\n\n"
-            f"Evaluator feedback: {explain}\n\n"
+            f"Evaluator feedback: {case_reason}\n\n"
             "Must strictly: (1) Use ONLY provided documents; (2) Be accurate and concise; "
             "(3) Clearly cite sources in a Markdown 'Sources Used' section with bullets using formats: "
             "judgement {id}, ordinance [index], knowledge [index]; (4) If unanswerable from provided materials, say so."
         )
 
-        return {
-            **updates,
-            "messages": [HumanMessage(content=feedback)],
-        }
+
+        feedback_message = HumanMessage(
+            content=feedback,
+            additional_kwargs={"from_eval": "case_revision_feedback"},
+        )
+
+        return {**updates, "messages": [feedback_message]}
+
+
+
 
     updates["need_revision"] = False
+    updates["legal_revision"] = False
     return {**updates, "messages": []}
 
 
@@ -315,13 +373,15 @@ def chatbot_eval(query, output, retrieval_context):
         )
         
         # 执行评估
-        case_number_metric.measure(test_case)
+        
         if retrieval_context == "No retrieval context":
             legal_relevance.score = 1
             legal_relevance.reason = "No retrieval context"
-
+            case_number_metric.score = 1
+            case_number_metric.reason = "No retrieval context"
             total_cost = case_number_metric.evaluation_cost
         else:
+            case_number_metric.measure(test_case)
             legal_relevance.measure(test_case)
 
             total_cost = case_number_metric.evaluation_cost + legal_relevance.evaluation_cost
@@ -344,6 +404,7 @@ def chatbot_eval(query, output, retrieval_context):
             "case_number": {"score": case_number_metric.score, "explain": str(case_number_metric.reason)},
             "legal_relevance": {"score": legal_relevance.score, "explain": str(legal_relevance.reason)}
         }
+
 # 保存到 Excel 文件
         dir_path = r'D:\data\eval_recording'
         os.makedirs(dir_path, exist_ok=True)
@@ -365,71 +426,3 @@ def chatbot_eval(query, output, retrieval_context):
             "case_number": {"score": None, "explain": f"Error: {e}"},
             "legal": {"score": None, "explain": f"Error: {e}"}
         }
-
-#pull dataset for local testing
-
-# def dataset_eval(dataset_path: str = "test_rag"):
-#     dataset = EvaluationDataset()
-#     dataset.pull(alias=dataset_path)
-
-#     results = []
-#     i=0
-#     output_file = "testing_results-gpt-5.1-mini.xlsx"
-#     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-        
-#         for golden in (dataset.goldens):
-#             i += 1
-
-#             # 使用函数评估单个案例
-#             result = chatbot_eval(golden.input, golden.actual_output, golden.retrieval_context)
-#             result['test_id'] = i  # 更新ID为当前循环索引
-#             results.append(result)
-
-#         # 创建主结果DataFrame
-#         df_results = pd.DataFrame(results)
-        
-#         # 保存到Excel的不同工作表
-#         # 1. 主要结果汇总表
-#         main_columns = ['test_id', 'case_number_score', 'legal_score', 'total_cost', 
-#                     'case_number_reason', 'legal_reason']
-#         df_results[main_columns].to_excel(writer, sheet_name='Summary_Results', index=False)
-        
-#         # 2. 完整数据表（包含input/output/retrieval）
-#         full_columns = ['test_id', 'input', 'actual_output', 'retrieval_context', 
-#                     'case_number_score', 'legal_score', 'case_number_cost', 'legal_cost','case_number_reason', 'legal_reason']
-#         df_results[full_columns].to_excel(writer, sheet_name='Full_Data', index=False)
-        
-#         # 3. 成本分析表
-#         cost_data = pd.DataFrame({
-#             'Metric': ['Case Number Total Cost', 'Legal Total Cost', 'Overall Total Cost'],
-#             'Value': [
-#                 df_results['case_number_cost'].sum(),
-#                 df_results['legal_cost'].sum(),
-#                 df_results['total_cost'].sum()
-#             ]
-#         })
-#         cost_data.to_excel(writer, sheet_name='Cost_Analysis', index=False)
-        
-#         # 4. 评分统计表
-#         score_stats = pd.DataFrame({
-#             'Metric': ['Case Number Avg Score', 'Case Number Pass Rate', 
-#                     'Legal Avg Score', 'Legal Pass Rate', 'Overall Pass Rate'],
-#             'Value': [
-#                 f"{df_results['case_number_score'].mean():.3f}",
-#                 f"{(df_results['case_number_score'] >= 0.5).mean()*100:.1f}%",
-#                 f"{df_results['legal_score'].mean():.3f}",
-#                 f"{(df_results['legal_score'] >= 0.5).mean()*100:.1f}%",
-#                 f"{((df_results['case_number_score'] >= 0.5) & (df_results['legal_score'] >= 0.5)).mean()*100:.1f}%"
-#             ]
-#         })
-#         score_stats.to_excel(writer, sheet_name='Score_Stats', index=False)
-        
-#         print(f"\n✅ 评估完成！结果已保存到: {output_file}")
-#         print(f"📊 总共评估了 {len(results)} 个测试用例")
-#         print(f"💰 总成本: {df_results['total_cost'].sum():.2f}")
-#         print(f"📈 平均Case Number得分: {df_results['case_number_score'].mean():.3f}")
-#         print(f"📈 平均Legal得分: {df_results['legal_score'].mean():.3f}")
-        
-    
-    
-    

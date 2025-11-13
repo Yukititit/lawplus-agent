@@ -74,10 +74,12 @@ class State:
     
     jud_search_history: List[Dict[str, Any]] = field(default_factory=list)
     pd_search_history:  List[Dict[str, Any]] = field(default_factory=list)
-    eval_score: float = 0.0
+    case_score: float = 0.0
+    legal_score: float = 0.0
     eval_explain: str = ""
     revision_count: float = 0
     need_revision: bool = False
+    legal_revision: bool = False
     messages: Annotated[List[BaseMessage], add_messages] = field(default_factory=list)
     
 
@@ -101,8 +103,9 @@ graph = (
     .add_edge("sum_model", "eval")
     .add_conditional_edges(
         "eval",
-        lambda state: "revise" if getattr(state, "need_revision", False) else "end",
+        lambda state: "revise_legal" if getattr(state, "legal_revision", False) else ("revise" if getattr(state, "need_revision", False) else "end"),
         {
+            "revise_legal": "process_query",
             "revise": "sum_model",
             "end": "__end__",
         },

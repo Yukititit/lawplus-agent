@@ -52,7 +52,7 @@ async def pd_search(state: any, runtime: any) -> any:
 
             summary_embedding=generate_embeddings(practice_direction_summary)
             index="practice_direction_v202508"
-            print('practice_direction_keywords11',practice_direction_keywords)
+            
             should_matches = [{"match": {"content": k}} for k in practice_direction_keywords]
             es_query = {
                 "bool": {

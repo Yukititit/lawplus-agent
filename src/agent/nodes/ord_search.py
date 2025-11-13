@@ -56,18 +56,46 @@ async def ord_search(state: any, runtime: any) -> any:
             search_query = " ".join(ordinance_keywords)
 
             # 对所有关键词进行轮询：每次取一个词为 must，其余为 should；并发执行
-            def build_bool_query(must_keyword: str, should_keywords: list[str]) -> dict:
+            def build_bool_query(primary_keyword: str, companion_keywords: list[str]) -> dict:
+                primary_kw = primary_keyword.strip()
                 must_clause = {
                     "match": {
                         "content": {
-                            "query": must_keyword,
+                            "query": primary_kw,
                             "operator": "and"
                         }
                     }
                 }
-                should_clauses = []
-                for idx, kw in enumerate(should_keywords):
-                    # 可选：给 should 递减权重，这里统一 1.0 也可根据 idx 做衰减
+                should_clauses = [
+                    {
+                        "match_phrase": {
+                            "content": {
+                                "query": primary_kw,
+                                "boost": 8
+                            }
+                        }
+                    },
+                    {
+                        "match": {
+                            "content": {
+                                "query": primary_kw,
+                                "boost": 2
+                            }
+                        }
+                    }
+                ]
+                for kw in companion_keywords:
+                    kw = kw.strip()
+                    if not kw:
+                        continue
+                    should_clauses.append({
+                        "match_phrase": {
+                            "content": {
+                                "query": kw,
+                                "boost": 4
+                            }
+                        }
+                    })
                     should_clauses.append({
                         "match": {
                             "content": {
@@ -79,10 +107,69 @@ async def ord_search(state: any, runtime: any) -> any:
                     "bool": {
                         "must": [must_clause],
                         "should": should_clauses,
-                        "minimum_should_match": 1 if len(should_clauses) > 0 else 0
+                        "minimum_should_match": 1
                     }
                 }
                 return bool_query
+            def build_bool_query_chinese(primary_keyword: str, companion_keywords: list[str]) -> dict:
+                primary_kw = primary_keyword.strip()
+                must_clause = {
+                    "match_phrase": {
+                        "content": {
+                            "query": primary_kw,
+                            'slop': 10,
+                            "operator": "and"
+                        }
+                    }
+                }
+                should_clauses = [
+                    {
+                        "match_phrase": {
+                            "content": {
+                                "query": primary_kw,
+                                "boost": 8,
+                                'slop': 10,
+                            }
+                        }
+                    },
+                    {
+                        "match_phrase": {
+                            "content": {
+                                "query": primary_kw,
+                                "boost": 2,
+                                'slop': 10,
+                            }
+                        }
+                    }
+                ]
+                for kw in companion_keywords:
+                    kw = kw.strip()
+                    if not kw:
+                        continue
+                    should_clauses.append({
+                        "match_phrase": {
+                            "content": {
+                                "query": kw,
+                                "boost": 4,
+                                'slop': 10,
+                            }
+                        }
+                    })
+                    should_clauses.append({
+                        "match_phrase": {
+                            "content": {
+                                "query": kw,
+                                'slop': 10,
+                            }
+                        }
+                    })
+                return {
+                    "bool": {
+                        "must": [must_clause],
+                        "should": should_clauses,
+                        "minimum_should_match": 1
+                    }
+                }
 
             async def search_async(query_body: dict, size: int = 4):
                 loop = asyncio.get_running_loop()
@@ -117,7 +204,7 @@ async def ord_search(state: any, runtime: any) -> any:
             # 中文关键词任务
             for i, k in enumerate(ordinance_keywords_chinese):
                 others = ordinance_keywords_chinese[:i] + ordinance_keywords_chinese[i+1:]
-                tasks.append(search_async(build_bool_query(k, others)))
+                tasks.append(search_async(build_bool_query_chinese(k, others)))
 
             results = await asyncio.gather(*tasks, return_exceptions=True) if len(tasks) > 0 else []
 
@@ -128,10 +215,11 @@ async def ord_search(state: any, runtime: any) -> any:
             for resp in results:
                 if isinstance(resp, Exception):
                     # 跳过失败任务，但保留历史为空列表作为占位
-                    new_history.append([])
+                    
                     continue
                 hits = resp.get('hits', {}).get('hits', [])
-                new_history.append(hits)
+                if len(hits) != 0:
+                    new_history.append(hits)
                 for h in hits[:4]:
                     doc_id = h.get('_id')
                     if doc_id not in seen_ids:
