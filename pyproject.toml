@@ -9,7 +9,13 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
+    "deepeval>=3.7.0",
+    "elasticsearch>=9.2.0",
+    "langchain>=1.0.5",
+    "langchain-openai>=1.0.2",
     "langgraph>=1.0.0",
+    "pandas>=2.3.3",
+    "psycopg-binary>=3.2.12",
     "python-dotenv>=1.0.1",
 ]
 
