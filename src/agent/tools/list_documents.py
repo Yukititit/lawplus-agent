@@ -1,282 +1,39 @@
+from typing import Any, Optional
 from langchain.tools import tool
+
+from src.db import Session
+from src.db.models import Document
 
 
 # Define tools
 @tool
-def list_documents() -> list[dict]:
+def list_documents(runtime: Optional[Any] = None) -> str:
     """List all documents in the case."""
 
-    return [
-        {
-            "id": "ebdbc3d6-d7ee-43d9-8858-8f01345254e3",
-            "uid": "53f5f5e3-acee-4ba7-8b6a-4cdc7441735d",
-            "name": "20250509 Authorisation (IRD).docx",
-            "docType": "Correspondence",
-            "summary": "This document is an authorization letter addressed to the Tax Department dated February 2025. The author, 胡愷瑩 (Wu Hoi Ying), a holder of a Hong Kong Permanent Resident Identity Card, authorizes CLM Lawyers to represent her in a claim related to an accident that occurred on November 1, 2024. The letter instructs the Tax Department to disclose all requested information and documents submitted by the author to CLM Lawyers or their representatives. The document includes the author's name and identity card number type but does not specify the actual number.",
-            "dated": "2025-02-01T00:00:00.000Z",
-        },
-        {
-            "id": "d5a1e925-91a1-475d-92f2-20627bf2b79b",
-            "uid": "de69fe64-3ddd-4bcd-8aa1-0d97663c797f",
-            "name": "20250509 Authorisation (general).docx",
-            "docType": "Supporting Documents",
-            "summary": "This document is an authorization letter dated May 2025, concerning a personal injury claim related to an accident that occurred on November 1, 2024. The party involved is 胡愷瑩 (Wu Hoi Ying), a holder of a Hong Kong Permanent Identity Card (number not specified). The document authorizes CLM Lawyers to represent the individual in the claim and instructs the relevant department to disclose all requested information and documents to CLM Lawyers or their representatives. The document includes the party's name and identity card information type but does not specify contact details such as address or phone number.",
-            "dated": "2025-05-01T00:00:00.000Z",
-        },
-        {
-            "id": "a3e7d8e9-b8a5-4fe2-bab8-2d66e13788c0",
-            "uid": "7455a1cf-4fe6-41b5-b5a1-904a7e8832b6",
-            "name": "20250509 Authorisation (medical).docx",
-            "docType": "Supporting Documents",
-            "summary": "This document is an authorization letter dated May 2025, signed by 胡愷瑩 (Wu Hoi Ying), a holder of a Hong Kong Permanent Identity Card. It authorizes CLM Lawyers to represent her in a claim related to an accident that occurred on November 11, 2024. The letter permits any doctors, hospitals, clinics, insurance companies, or other organizations or individuals holding or knowing her health records or consultation information to disclose all relevant medical information to CLM Lawyers or their representatives. The document includes the name of the claimant and her identity card number type, and it contains a signature line for authorization. The document serves as a formal consent for medical information disclosure to support the legal claim.",
-            "dated": "",
-        },
-        {
-            "id": "1da0fe33-d6b1-4b6e-a276-2d1f8bfc1f12",
-            "uid": "11fec285-9b32-422b-87e2-fe687ea68ad8",
-            "name": "37d0e44b-f2d4-4dda-955e-df7264d49d1f.jpg",
-            "docType": "Correspondence",
-            "summary": "This document is a formal letter from the Hong Kong Police Force, Pat Heung Police Station, addressed to Ms. 胡愷螢. It responds to her request to access information regarding a dispute case that occurred on November 1, 2024, involving a dog bite incident at a pet supplies store in Kam Tin. The letter provides details of the incident, including the time, location, parties involved (Ms. 胡愷螢 and a female store employee surnamed 林), and the police's conclusion that the case has no criminal elements and is classified as a dispute. The document includes contact information for further inquiries and official police references such as file numbers, telephone, and fax numbers. The letter is signed by Senior Inspector 陳傑華 on behalf of the Police Commissioner and dated November 26, 2024.",
-            "dated": "2024-11-26T00:00:00.000Z",
-        },
-        {
-            "id": "ff98ecd7-4f9b-46a7-aabd-c655ac0d8f82",
-            "uid": "274484db-5153-48d6-a76c-7416bc251cf3",
-            "name": "Ashley_Claim_cal.docx",
-            "docType": "Supporting Documents",
-            "summary": "This document is a calculation of loss of earnings related to a personal injury claim. It includes details of sick leave compensation for 2 days based on a monthly salary of HKD 28,000, resulting in HKD 1,867. It also lists cancelled freelance modeling jobs for skin care products and dog accessories due to scarring, with amounts of HKD 35,000 and HKD 30,000 respectively. The subtotal for these losses is HKD 66,867. Additionally, it includes future loss of earnings for a part-time sales ambassador role related to dog accessories, amounting to HKD 132,000 for 12 months. The total loss of earnings calculated is HKD 198,867. The document mentions contracts to be provided later (contract 後補) and a PSLA subtotal to be confirmed. The document does not specify parties or personal information.",
-            "dated": "",
-        },
-        {
-            "id": "801369f0-3edc-4462-8f24-f55924483021",
-            "uid": "8e9c2a4a-de53-4d99-8c80-98a7f565c042",
-            "name": "Ashley_Claim_cal.pdf",
-            "docType": "Supporting Documents",
-            "summary": "This document is a calculation sheet detailing loss of earnings and future loss of earnings related to a personal injury claim. It includes specific financial figures such as sick leave compensation, job cancellations as a freelance model due to scars, and future part-time earnings loss as a sales ambassador for dog accessories. The document lists monetary amounts in HKD and mentions contracts to be supplemented (contract 後補). No personal party names or contact information are included in this excerpt.",
-            "dated": "",
-        },
-        {
-            "id": "db8c3eac-19aa-4d6f-a090-c39e3f00afe8",
-            "uid": "6e8af613-5061-4568-ae73-158a836b37b0",
-            "name": "FAX_101_00000015_20250228105256_672740.pdf",
-            "docType": "Correspondence",
-            "summary": "This document is a formal letter from the law firm LEE & SO, Solicitors, addressed to Messrs. H. F. Yip & Co. The letter concerns an intended common law claim related to an incident dated 1st November 2024 involving the claimant Wu Hoi Ying. The letter includes party information such as law firm contact details and references to the claimant and their client, Ms. Lam Tsz Yan. The key content denies the allegations that the claimant was bitten by a Shiba Inu on the stated date, asserts that the claimant was a trespasser in a private area of the client's shop, and denies any duty of care or liability. The letter urges reconsideration of the claim and reserves all rights of the client, indicating readiness to defend any unmeritorious claim vigorously. A floor plan of the client's shop is enclosed for reference.",
-            "dated": "2025-02-28T00:00:00.000Z",
-        },
-        {
-            "id": "68a34567-4e5d-41cb-b4a4-16ca237ac79f",
-            "uid": "2a325831-3fde-4432-b757-d70122ee2ef9",
-            "name": "HKPF_record.jpg",
-            "docType": "Correspondence",
-            "summary": "This document is a formal letter from the Hong Kong Police Force, Pat Heung Police Station, addressed to Ms. 胡愷螢. It responds to her request dated 2024-11-25 for information regarding a dispute case that occurred on 2024-10-23. The letter provides details of the incident where Ms. 胡愷螢 was bitten on the right thigh by a Shiba Inu dog at a pet supplies store named 主子吧, located at 153B, 吉慶圍銀喜閣, Kam Tin. The dog was owned by a female staff member surnamed 林. The police investigation confirmed no criminal elements involved, and Ms. 胡愷螢 declined ambulance services, opting to seek medical treatment herself. The letter includes contact information for further inquiries and is signed by Senior Inspector 陳傑華 on behalf of the Police Station Commander. The document contains party names, addresses, telephone and fax numbers, and case reference numbers.",
-            "dated": "2024-11-26T00:00:00.000Z",
-        },
-        {
-            "id": "60e22cb1-019e-422c-a98c-faba94d62f77",
-            "uid": "6d279b13-9114-468e-9f0e-49457b0520d2",
-            "name": "L 20250430 Letter to Lee & So.pdf",
-            "docType": "Correspondence",
-            "summary": "This document is a formal letter from CLM Lawyers to Messrs. Lee & So, Solicitors, regarding an intended common law claim for personal injury. The claimant is Wu Hoi Ying, who was bitten by the defendant's Shiba Inu dog on 1 November 2024. The letter denies the allegation that the claimant was a trespasser, asserting she was a lawful visitor and customer at the defendant's shop. It requests confirmation of any relevant insurance policy held by the defendant and indicates that, absent any settlement or admission of liability, CLM Lawyers have instructions to commence legal proceedings. The letter includes party names, addresses, phone and fax numbers, email addresses, and references to previous correspondence and legal instructions.",
-            "dated": "2025-02-28T00:00:00.000Z",
-        },
-        {
-            "id": "817ecb73-8646-4eeb-b4cd-507b4bed3318",
-            "uid": "dad7f658-91d4-4ed2-aba7-120082e9fc4d",
-            "name": "L 20250502 Letter from Lee & So.pdf",
-            "docType": "Correspondence",
-            "summary": "This document is a formal letter from the law firm LEE & SO, Solicitors, addressed to Messrs. CLM Lawyers regarding an intended common law claim related to a personal injury incident dated 1st November 2024. The claimant named is Wu Hoi Ying. The letter includes contact information for the law firm, names of partners and associates, and references a previous letter dated 30th April 2025. The key content denies liability on behalf of LEE & SO's client, requests additional documentation that was omitted in the prior Letter Before Action dated 3rd February 2025, and confirms the firm's instructions to defend the claim vigorously. The letter also reserves all rights of their client and clarifies that no admission of liability is made. The document contains addresses, phone and fax numbers, email, and website information of the law firm.",
-            "dated": "2025-05-02T00:00:00.000Z",
-        },
-        {
-            "id": "b9107441-022f-4241-bf65-716060c1cd34",
-            "uid": "efc6a56e-d634-4df5-b20d-969168221c0b",
-            "name": "Letter to Bun Shop 03.02.2025.pdf",
-            "docType": "Correspondence",
-            "summary": "This document is a formal letter from the law firm H. F. Yip & Co. addressed to MS.Bun.HK 菜肉包, regarding an intended common law claim for damages due to a dog bite accident involving their client, WU HOI YING. The letter details the accident that occurred on 23 October 2024 at 新界元朗錦田吉慶銀喜閣 153 號 B 地下, where the claimant was bitten by a Shiba Inu owned by the recipient. It includes allegations of negligence against the dog owner and requests the recipient to forward the letter to their insurer. The letter also encloses supporting documents such as a sick leave certificate and medical receipt from CUHK Medical Centre. The parties mentioned are the claimant WU HOI YING and the recipient MS.Bun.HK 菜肉包. The document includes party information such as addresses and contact details of the law firm and the recipient's address. The letter requests a response within one month and warns of potential legal proceedings if ignored.",
-            "dated": "2025-02-03T00:00:00.000Z",
-        },
-        {
-            "id": "553ec726-9449-4576-a4cd-777cfe26570d",
-            "uid": "966aa882-5cdd-4301-9ca4-6296ea9e0896",
-            "name": "Letter to Dog Owner 03.02.2025.pdf",
-            "docType": "Correspondence",
-            "summary": "This document is a formal letter from the law firm H. F. Yip & Co. addressed to Ms. Lam Tsz Yan regarding an intended common law claim for damages due to a dog bite accident. The claimant is WU HOI YING, who was bitten by a Shiba Inu dog at Your Petjesty Pet Shop located at 新界元朗錦田吉慶銀喜閣 153 號 B 地下 on 23 October 2024. The letter alleges fault on the dog owner's part for failing to manage the dog's behavior and prevent the accident. It includes claimant's personal injury details, medical treatment information, and sick leave certification. The letter requests the recipient to forward it to their insurer and indicates that failure to respond within one month may lead to legal proceedings. The document includes the claimant's name, accident details, address of the accident location, and references to medical documents such as a sick leave certificate and medical receipt. Contact information for the law firm and the solicitors involved is also provided.",
-            "dated": "2025-02-03T00:00:00.000Z",
-        },
-        {
-            "id": "b9d2b62b-472a-4ea9-8feb-f9008f6e327d",
-            "uid": "1a7358d9-8abd-4857-98f9-61b23ac7cc79",
-            "name": "ati.pdf",
-            "docType": "",
-            "summary": "This document is an application form titled 'APPLICATION FOR ACCESS TO INFORMATION' used to request specific information from the Inland Revenue Department. The applicant is Wu Hoi Ying. The form includes fields for personal particulars such as name, Hong Kong ID number, correspondence address, telephone number, and fax number. The key content includes a request for tax returns filed by the employer and employee for the years 2022, 2023, and 2024, as well as demand notes for salary tax for those years. The form also contains notes about potential charges for reproducing records, the need for additional information, and data usage policies.",
-            "dated": "",
-        },
-        {
-            "id": "df27d156-a9c6-44dd-bbdb-b53d6b0f80f5",
-            "uid": "25ad8f99-1153-4e37-92a6-bd6ef7f8ad10",
-            "name": "deleted-20250509 Authorisation (IRD).docx-df27d156-a9c6-44dd-bbdb-b53d6b0f80f5",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "28608981-0d9b-4020-bff8-03ca7d0974e6",
-            "uid": "c6b3f5c8-be30-40fe-a2bf-eaa0795d5f20",
-            "name": "deleted-20250509 Authorisation (general).docx-28608981-0d9b-4020-bff8-03ca7d0974e6",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "e519d4b7-18a5-4b1f-90a7-7c2620407d56",
-            "uid": "34177f45-c1ec-4c39-a1cc-c2c22496cad9",
-            "name": "deleted-20250509 Authorisation (medical).docx-e519d4b7-18a5-4b1f-90a7-7c2620407d56",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "2581c18f-806c-4e42-8820-f04d6ff22c06",
-            "uid": "2aad4e3c-a1d0-431f-a370-8473afe89591",
-            "name": "deleted-37d0e44b-f2d4-4dda-955e-df7264d49d1f.jpg-2581c18f-806c-4e42-8820-f04d6ff22c06",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "b89d002b-2d35-463d-80a8-02de19ced33e",
-            "uid": "a246aa78-a45e-4355-b4ab-b057239130aa",
-            "name": "deleted-37d0e44b-f2d4-4dda-955e-df7264d49d1f.jpg-b89d002b-2d35-463d-80a8-02de19ced33e",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "e6c7a9a8-dbc9-470a-bfe2-b0232fc878fa",
-            "uid": "c3de7103-8586-4435-a588-abb187975b9f",
-            "name": "deleted-37d0e44b-f2d4-4dda-955e-df7264d49d1f.jpg-e6c7a9a8-dbc9-470a-bfe2-b0232fc878fa",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "e2333d75-65cc-4df0-a402-38c65d8c16cd",
-            "uid": "f60f8144-d197-4508-998b-0d5c7e8e209d",
-            "name": "deleted-Ashley_Claim_cal.docx-e2333d75-65cc-4df0-a402-38c65d8c16cd",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "26316011-3b64-42dd-9de9-790569eee1bd",
-            "uid": "90b9d536-610f-4fc0-82b4-ce7fabc71d6e",
-            "name": "deleted-Ashley_Claim_cal.pdf-26316011-3b64-42dd-9de9-790569eee1bd",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "ac5c7e1a-198d-47c7-9c36-afb8f33f53ee",
-            "uid": "7e2864a3-520a-4fb4-ad12-5427a398d4d6",
-            "name": "deleted-FAX_101_00000015_20250228105256_672740.pdf-ac5c7e1a-198d-47c7-9c36-afb8f33f53ee",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "6dfcf138-2368-4680-a88a-58c762478c26",
-            "uid": "f42fb943-cea0-4f60-addf-402222b65648",
-            "name": "deleted-HKPF_record.jpg-6dfcf138-2368-4680-a88a-58c762478c26",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "a3fafd7b-d3a6-4f39-9ded-e011ec6a400a",
-            "uid": "01e4d8c6-1c35-411d-91c8-518df4631e79",
-            "name": "deleted-L 20250430 Letter to Lee & So.pdf-a3fafd7b-d3a6-4f39-9ded-e011ec6a400a",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "94b12257-b4ee-4904-8fec-f8d30a8ec753",
-            "uid": "aa5798f4-a878-41a9-9fc9-5e80864b485b",
-            "name": "deleted-L 20250502 Letter from Lee & So.pdf-94b12257-b4ee-4904-8fec-f8d30a8ec753",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "3ce66498-4daf-48c7-ba04-3ddd602ba7b5",
-            "uid": "cce044e4-c58c-473c-afe8-5aab8adc5802",
-            "name": "deleted-Letter to Bun Shop 03.02.2025.pdf-3ce66498-4daf-48c7-ba04-3ddd602ba7b5",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "c9df5b58-95ff-44d2-a439-f5bc0dc18c14",
-            "uid": "352ef74a-02fe-4335-aa09-28b983d9550a",
-            "name": "deleted-Letter to Dog Owner 03.02.2025.pdf-c9df5b58-95ff-44d2-a439-f5bc0dc18c14",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "52d62dde-2903-4184-ae55-15e8f10dfd5d",
-            "uid": "ac4184bc-42c0-44a6-bae4-ade47a087589",
-            "name": "deleted-ati.pdf-52d62dde-2903-4184-ae55-15e8f10dfd5d",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "12a34895-a4e3-472a-a3c7-cdf679c3a747",
-            "uid": "338d4a12-dfaa-46a2-8917-597fbe87753b",
-            "name": "deleted-fcc355e2-9be3-4ffb-8a04-50f5a67b2085.jpg-12a34895-a4e3-472a-a3c7-cdf679c3a747",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "c00e098e-4c6c-4f61-aa06-b99e310205cd",
-            "uid": "fd0e0323-e010-4e11-ac24-95a78056f219",
-            "name": "deleted-receipt.jpg-c00e098e-4c6c-4f61-aa06-b99e310205cd",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "5178db88-0f1e-4adc-8e9a-99b029c02b03",
-            "uid": "006fb113-6f94-46a1-8dc1-6831dbfa7852",
-            "name": "deleted-sick leave.jpg-5178db88-0f1e-4adc-8e9a-99b029c02b03",
-            "docType": "",
-            "summary": "",
-            "dated": "",
-        },
-        {
-            "id": "4e856729-4060-4f78-837c-c6260af90aa9",
-            "uid": "1de9e204-8a4f-4e67-9fcc-76bfef520d1a",
-            "name": "fcc355e2-9be3-4ffb-8a04-50f5a67b2085.jpg",
-            "docType": "Personal Info",
-            "summary": "This document is an original Business Registration Certificate issued under the Business Registration Ordinance (Chapter 310) for the business named 菜肉包 (MS.BUN.HK). It includes business details such as the business name, address (新界元朗錦田吉慶圍153號B地下), nature of business (寵物用品 - pet supplies), legal status (個人 - individual), date of commencement (06/11/2024), date of expiry (05/11/2025), certificate number (41383899-000-11-24-5), and fee and levy status (exempt). The document also contains statutory notes regarding compliance and display requirements under the Business Registration Ordinance.",
-            "dated": "2024-11-06T00:00:00.000Z",
-        },
-        {
-            "id": "0b690494-b80d-4f68-a648-95cdb17f6a03",
-            "uid": "aef6f068-f4a1-4e16-9586-7231645dc164",
-            "name": "receipt.jpg",
-            "docType": "Supporting Documents",
-            "summary": "This document is an official receipt issued by 香港中文大學醫院 CUHK Medical Centre for patient WU, Hoi Ying (胡愷瑩). It includes patient identification details such as patient name and patient number, receipt number, receipt date, invoice number, print date, payment date, payment method, reference number, and the amount paid. The receipt confirms a payment of HK$520.00 made by Master Card on 01 NOV 2024. It also contains notes regarding the validity of the receipt, instructions for review and retention, and refund policy. The document is stamped with the hospital's payment received chop.",
-            "dated": "2024-11-01T00:00:00.000Z",
-        },
-        {
-            "id": "5bee0850-0350-4390-a184-72216036d5d6",
-            "uid": "3119af13-6515-4187-8bdc-f13957243751",
-            "name": "sick leave.jpg",
-            "docType": "Supporting Documents",
-            "summary": "This document is a sick leave certificate issued by the Emergency Medicine Centre at CUHK Medical Centre. It certifies that WU, Hoi Ying (胡愷瑩) is suffering from a wound due to a dog bite accident and is recommended to take 2 days of sick leave from 01-11-2024 to 02-11-2024 inclusive. The document includes the patient's name, medical condition, recommended sick leave period, and the issuing doctor's name and qualifications. Contact information for the medical centre such as address, telephone number, and email is also provided.",
-            "dated": "2024-11-01T00:00:00.000Z",
-        },
-    ]
+    db = Session()
+    documents = (
+        db.query(Document)
+        .filter(
+            Document.case_id == runtime.case_id,
+            Document.deleted == False,
+            Document.processed == True,
+        )
+        .all()
+    )
+
+    docs = []
+    for document in documents:
+        analysis = document.upload.document_analysis
+
+        docs.append(
+            {
+                "id": str(document.id),
+                "uid": str(document.upload_id),
+                "type": analysis.doc_type,
+                "summary": analysis.summary,
+                "dated": analysis.dated,
+            }
+        )
+
+    db.close()
+    return docs
