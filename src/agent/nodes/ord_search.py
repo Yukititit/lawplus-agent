@@ -55,7 +55,6 @@ async def ord_search(state: any, runtime: any) -> any:
             index="ordinances_v202508"
             search_query = " ".join(ordinance_keywords)
 
-            # 对所有关键词进行轮询：每次取一个词为 must，其余为 should；并发执行
             def build_bool_query(primary_keyword: str, companion_keywords: list[str]) -> dict:
                 primary_kw = primary_keyword.strip()
                 must_clause = {
@@ -197,11 +196,9 @@ async def ord_search(state: any, runtime: any) -> any:
                 return await loop.run_in_executor(None, func)
 
             tasks = []
-            # 英文关键词任务
             for i, k in enumerate(ordinance_keywords):
                 others = ordinance_keywords[:i] + ordinance_keywords[i+1:]
                 tasks.append(search_async(build_bool_query(k, others)))
-            # 中文关键词任务
             for i, k in enumerate(ordinance_keywords_chinese):
                 others = ordinance_keywords_chinese[:i] + ordinance_keywords_chinese[i+1:]
                 tasks.append(search_async(build_bool_query_chinese(k, others)))
@@ -214,16 +211,14 @@ async def ord_search(state: any, runtime: any) -> any:
 
             for resp in results:
                 if isinstance(resp, Exception):
-                    # 跳过失败任务，但保留历史为空列表作为占位
-                    
                     continue
+
                 hits = resp.get('hits', {}).get('hits', [])
-                if len(hits) != 0:
-                    new_history.append(hits)
-                for h in hits[:4]:
+                for h in hits:
                     doc_id = h.get('_id')
                     if doc_id not in seen_ids:
                         merged_hits.append(h)
+                        new_history.append(h)
                         seen_ids.add(doc_id)
 
             return {
@@ -238,7 +233,6 @@ async def ord_search(state: any, runtime: any) -> any:
                 "messages": []
             }
     except Exception as e:
-            
             history = state.ord_search_history if hasattr(state, 'ord_search_history') else []
             return {
                 "ord_search_results": {"error": str(e), "hits": []},

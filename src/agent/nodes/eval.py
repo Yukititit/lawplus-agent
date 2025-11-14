@@ -64,17 +64,10 @@ def _extract_retrieval_context(state: any) -> str:
     pd_hist = getattr(state, 'pd_search_history', []) or []
 
     if RECENT_ROUNDS > 0:
-        ord_hist = ord_hist[-RECENT_ROUNDS:] if len(ord_hist) > 0 else ord_hist
-        
         pd_hist = pd_hist[-RECENT_ROUNDS:] if len(pd_hist) > 0 else pd_hist
 
-
     ord_chunks = []
-
-    for round_hits in ord_hist:
-
-        for hit in (round_hits or []):
-
+    for hit in ord_hist:
             src = (hit.get('_source') or {}) if isinstance(hit, dict) else {}
 
             content = src.get('content')
@@ -122,7 +115,6 @@ def _extract_retrieval_context(state: any) -> str:
         parts.append("[Judgements]\n" + safe_join(jud_chunks))
     if pd_chunks:
         parts.append("[Practice Directions]\n" + safe_join(pd_chunks))
-
     return safe_join(parts) if parts else "No retrieval context"
 
 
@@ -146,7 +138,6 @@ async def eval(state: any, runtime: any) -> any:
     legal_reason = result.get("legal_relevance", {}).get("explain") 
 
  
-    print(f"csea_score: {case_score}, legal_score: {legal_score}")
     explain_parts = []
     if case_reason:
         explain_parts.append(f"Factual Faithfulness: {case_reason}")
@@ -192,10 +183,7 @@ async def eval(state: any, runtime: any) -> any:
             "- Output ONLY the new query as a single string. Do not include explanations or additional text."
         )
 
-        # feedback_message = HumanMessage(
-        #     content=feedback_for_query,
-        #     additional_kwargs={"from_eval": "legal_revision_feedback"},
-        # )
+
         messages = [
             SystemMessage(
                 content=feedback_for_query
@@ -207,7 +195,7 @@ async def eval(state: any, runtime: any) -> any:
 
 
     # secondary determination: when the factual faithfulness is low, go back to the summary model to rewrite the answer (continue to use the current logic)
-    if case_low and revision_count_current < MAX_REVISIONS:
+    if case_low and revision_count_current < MAX_REVISIONS+1:
         revision_count = revision_count_current + 1
         updates["revision_count"] = revision_count
         updates["need_revision"] = True
@@ -221,15 +209,14 @@ async def eval(state: any, runtime: any) -> any:
             "judgement {id}, ordinance [index], knowledge [index]; (4) If unanswerable from provided materials, say so."
         )
 
+        feedback_message = [
+            SystemMessage(
+                content=feedback
+            )
+        ] + state.messages
 
-        feedback_message = HumanMessage(
-            content=feedback,
-            additional_kwargs={"from_eval": "case_revision_feedback"},
-        )
-
-        return {**updates, "messages": [feedback_message]}
-
-
+        response = await model2.ainvoke(feedback_message)
+        return {**updates, "messages": [response]}
 
 
     updates["need_revision"] = False
